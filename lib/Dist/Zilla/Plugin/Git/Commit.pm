@@ -10,7 +10,7 @@ use File::Temp           qw{ tempfile };
 use List::Util           qw{ first };
 use Moose;
 use MooseX::Has::Sugar;
-use MooseX::Types::Moose qw{ Str };
+use MooseX::Types::Moose qw{ Str Bool };
 use MooseX::Types::Path::Tiny 0.010 qw{ Paths };
 use Path::Tiny 0.048 qw(); # subsumes
 use Cwd;
@@ -44,7 +44,7 @@ sub _git_config_mapping { +{
 has commit_msg => ( ro, isa=>Str, default => 'v%v%n%n%c' );
 has time_zone  => ( ro, isa=>Str, default => 'local' );
 has add_files_in  => ( ro, isa=> Paths, coerce => 1, default => sub { [] });
-
+has allow_empty => ( ro, isa=>Bool );
 
 # -- public methods
 
@@ -90,7 +90,7 @@ sub after_release {
     }
 
     # if nothing to commit, we're done!
-    return unless @output;
+    return unless @output || $self->allow_empty;
 
     # write commit message in a temp file
     my ($fh, $filename) = tempfile( getcwd . '/DZP-git.XXXX', UNLINK => 1 );
@@ -100,7 +100,7 @@ sub after_release {
 
     # commit the files in git
     $git->add( @output );
-    $self->log_debug($_) for $git->commit( { file=>$filename } );
+    $self->log_debug($_) for $git->commit( { file=>$filename, ($self->allow_empty ? ('allow-empty' => 1) : ()) } );
     $self->log("Committed @output");
 }
 
